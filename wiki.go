@@ -40,8 +40,7 @@ func viewHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		p = &Page{Title: title}
 	}
-	t, _ := template.ParseFiles("view.html")
-	t.Execute(w, p)
+	renderTemplate(w, "view", p)
 }
 
 func editHandler(w http.ResponseWriter, r *http.Request) {
@@ -50,21 +49,15 @@ func editHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		p = &Page{Title: title}
 	}
-	t, _ := template.ParseFiles("edit.html")
+	renderTemplate(w, "edit", p)
+}
+
+func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
+	t, _ := template.ParseFiles(tmpl + ".html")
 	t.Execute(w, p)
 }
 
 func main() {
-	// part1 at beginning
-	// p1 := &Page{Title: "TestPage", Body: []byte("This is a sample page.")}
-	// p1.save()
-	// p2, _ := loadPage("TestPage")
-	// fmt.Println(string(p2.Body))
-
-	// Part2 - starts at Introducing the net/http package (an interlude)
-
-	// This will dispaly the content of TestPage.txt
-	//Part3 - Starts at Editing Pages
 
 	// Call the home page by typing http://localhost:8080
 	http.HandleFunc("/", homeHandler)
@@ -72,7 +65,7 @@ func main() {
 	// Test the view page by typing http://localhost:8080/view/Testpage
 	http.HandleFunc("/view/", viewHandler)
 
-	// Test the edit page by typing http://localhost:8080/edit/Testpage
+	// Test the edit page by typing http://localhost:8080/edit/
 	http.HandleFunc("/edit/", editHandler)
 	http.ListenAndServe(":8080", nil)
 }
