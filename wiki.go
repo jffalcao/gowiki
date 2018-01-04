@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"html/template"
 	"io/ioutil"
 	"net/http"
 )
@@ -29,15 +30,18 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 	title := "index"
 	p, _ := loadPage(title)
 	fmt.Fprintf(w, "<H1>%s - Homepage Handler</H1><div>%s</div>"+
-		"<a href=\"/edit/testpage\"> edit Handler</a><br>"+
-		"<a href=\"/view/testpage\"> view Handler</a>", p.Title, p.Body)
+		"<a href=\"/edit\"> edit Handler</a><br>"+
+		"<a href=\"/view/TestPage\"> view Handler</a>", p.Title, p.Body)
 }
 
 func viewHandler(w http.ResponseWriter, r *http.Request) {
 	title := r.URL.Path[len("/view/"):]
-	p, _ := loadPage(title)
-	fmt.Fprintf(w, "<H1>%s - View Handler</H1><div>%s</div><br>", p.Title, p.Body)
-	fmt.Fprintf(w, "<p><a href=\"/\"> Home</a></p>")
+	p, err := loadPage(title)
+	if err != nil {
+		p = &Page{Title: title}
+	}
+	t, _ := template.ParseFiles("view.html")
+	t.Execute(w, p)
 }
 
 func editHandler(w http.ResponseWriter, r *http.Request) {
@@ -46,13 +50,8 @@ func editHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		p = &Page{Title: title}
 	}
-	fmt.Fprintf(w, "<h1>Editing %s</h1>"+
-		"<form action=\"/save/%s\" method=\"POST\">"+
-		"<textarea name=\"body\">%s</textarea><br>"+
-		"<input type=\"submit\" value=\"Save\">"+
-		"</form>",
-		p.Title, p.Title, p.Body)
-	fmt.Fprintf(w, "<p><a href=\"/\"> Home</a></p>")
+	t, _ := template.ParseFiles("edit.html")
+	t.Execute(w, p)
 }
 
 func main() {
