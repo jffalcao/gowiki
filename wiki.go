@@ -1,10 +1,11 @@
 package main
 
 import (
-	"fmt"
+	"errors"
 	"html/template"
 	"io/ioutil"
 	"net/http"
+	"regexp"
 )
 
 type Page struct {
@@ -29,22 +30,26 @@ func loadPage(title string) (*Page, error) {
 func homeHandler(w http.ResponseWriter, r *http.Request) {
 	title := "index"
 	p, _ := loadPage(title)
-	fmt.Fprintf(w, "<H1>%s - Homepage Handler</H1><div>%s</div>"+
-		"<a href=\"/edit\"> edit Handler</a><br>"+
-		"<a href=\"/view/TestPage\"> view Handler</a>", p.Title, p.Body)
+	renderTemplate(w, "index", p)
 }
 
 func viewHandler(w http.ResponseWriter, r *http.Request) {
-	title := r.URL.Path[len("/view/"):]
+	title, err := getTitle(w, r)
+	if err != nil {
+		return
+	}
 	p, err := loadPage(title)
 	if err != nil {
-		p = &Page{Title: title}
+		http.Redirect(w, r, "/edit/"+title, http.StatusFound)
 	}
 	renderTemplate(w, "view", p)
 }
 
 func editHandler(w http.ResponseWriter, r *http.Request) {
-	title := r.URL.Path[len("/edit/"):]
+	title, err := getTitle(w, r)
+	if err != nil {
+		return
+	}
 	p, err := loadPage(title)
 	if err != nil {
 		p = &Page{Title: title}
@@ -52,12 +57,45 @@ func editHandler(w http.ResponseWriter, r *http.Request) {
 	renderTemplate(w, "edit", p)
 }
 
+func saveHandler(w http.ResponseWriter, r *http.Request) {
+	title, err := getTitle(w, r)
+	if err != nil {
+		return
+	}
+	body := r.FormValue("body")
+	p := &Page{Title: title, Body: []byte(body)}
+	err = p.save()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, "/view/"+title, http.StatusNotFound)
+}
+
+var templates = template.Must(template.ParseFiles("index.html", "edit.html", "view.html"))
+
 func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
-	t, _ := template.ParseFiles(tmpl + ".html")
-	t.Execute(w, p)
+	err := templates.ExecuteTemplate(w, tmpl+".html", p)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+var validPath = regexp.MustCompile("^/(index|edit|save|view)/([a-zA-Z0-9]+)$")
+
+func getTitle(w http.ResponseWriter, r *http.Request) (string, error) {
+	m := validPath.FindStringSubmatch(r.URL.Path)
+	if m == nil {
+		http.NotFound(w, r)
+		return "", errors.New("Invalid Page Title")
+	}
+	return m[2], nil
 }
 
 func main() {
+
+	// Part4 - Starts at handling non exisant pages
 
 	// Call the home page by typing http://localhost:8080
 	http.HandleFunc("/", homeHandler)
